@@ -1,11 +1,9 @@
-# app/main.py
-
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from bson import ObjectId
 
-from app.routes import router   # ⬅ only this router now
+from app.routes import router  # Router already contains your API endpoints
 
 # Custom encoder for ObjectId
 def custom_jsonable_encoder(obj):
@@ -25,6 +23,6 @@ app = FastAPI(
     default_response_class=CustomJSONResponse,
 )
 
-# Include all API routes (users + memories live in routes.py)
-app.include_router(router, tags=["api"])
+# 🚀 Add /api prefix to all routes
+app.include_router(router, prefix="/api", tags=["api"])
 
