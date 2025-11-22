@@ -26,9 +26,11 @@ app = FastAPI(
 
 # ---------- CORS Setup (allow frontend access) ----------
 origins = [
-    "http://localhost:8080",            # Local frontend
-    "https://lucid-mirror.lovable.app"  # Deployed Lovable frontend
+    "http://localhost:8080",
+    "http://localhost:8081",  # ← your current frontend dev port
+    "https://lucid-mirror.lovable.app",  # ← deployed frontend URL
 ]
+
 
 app.add_middleware(
     CORSMiddleware,
