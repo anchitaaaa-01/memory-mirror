@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+'''from fastapi import APIRouter
 from pydantic import BaseModel
 from app.database import db
 
@@ -19,4 +19,4 @@ def create_memory(memory: Memory):
 @router.get("/memories")
 def get_memories():
     memories = list(memories_collection.find({}, {"_id": 0}))
-    return {"memories": memories}
+    return {"memories": memories}'''

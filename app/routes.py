@@ -1,12 +1,16 @@
+# app/routes.py
+
 from fastapi import APIRouter, HTTPException, Body
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from bson import ObjectId
+
 from app.database import users_collection, memories_collection
 
 router = APIRouter()
 
 # ---------- Schemas ----------
+
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
@@ -33,6 +37,7 @@ class MemoryResponse(BaseModel):
 
 
 # ---------- Health & Root ----------
+
 @router.get("/health")
 def health_check():
     return {"ok": True}
@@ -43,8 +48,12 @@ def root():
 
 
 # ---------- Users ----------
+
 @router.post("/users", response_model=UserResponse, status_code=201)
 def create_user(user: UserCreate):
+    if users_collection is None:
+        raise HTTPException(status_code=500, detail="Database not connected")
+
     if users_collection.find_one({"email": user.email}):
         raise HTTPException(status_code=409, detail="Email already exists")
 
@@ -55,6 +64,9 @@ def create_user(user: UserCreate):
 
 @router.get("/users", response_model=List[UserResponse])
 def get_users():
+    if users_collection is None:
+        raise HTTPException(status_code=500, detail="Database not connected")
+
     users = []
     for u in users_collection.find({}):
         users.append({
@@ -68,6 +80,9 @@ def get_users():
 
 @router.get("/users/{user_id}", response_model=UserResponse)
 def get_user(user_id: str):
+    if users_collection is None:
+        raise HTTPException(status_code=500, detail="Database not connected")
+
     user = users_collection.find_one({"_id": ObjectId(user_id)})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -79,36 +94,13 @@ def get_user(user_id: str):
     }
 
 
-@router.put("/users/{user_id}", response_model=UserResponse)
-def update_user(user_id: str, data: dict = Body(...)):
-    user = users_collection.find_one({"_id": ObjectId(user_id)})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    users_collection.update_one({"_id": ObjectId(user_id)}, {"$set": data})
-    updated = users_collection.find_one({"_id": ObjectId(user_id)})
-    return {
-        "id": str(updated["_id"]),
-        "name": updated["name"],
-        "email": updated["email"],
-        "relation": updated.get("relation")
-    }
-
-
-@router.delete("/users/{user_id}")
-def delete_user(user_id: str):
-    result = users_collection.delete_one({"_id": ObjectId(user_id)})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Optional: delete user's memories too
-    memories_collection.delete_many({"user_id": user_id})
-    return {"message": "User and their memories deleted"}
-
-
 # ---------- Memories ----------
+
 @router.post("/memories", response_model=MemoryResponse, status_code=201)
 def create_memory(memory: MemoryCreate):
+    if memories_collection is None or users_collection is None:
+        raise HTTPException(status_code=500, detail="Database not connected")
+
     # check if user exists
     if not users_collection.find_one({"_id": ObjectId(memory.user_id)}):
         raise HTTPException(status_code=404, detail="User not found")
@@ -120,6 +112,9 @@ def create_memory(memory: MemoryCreate):
 
 @router.get("/memories", response_model=List[MemoryResponse])
 def get_memories():
+    if memories_collection is None:
+        raise HTTPException(status_code=500, detail="Database not connected")
+
     memories = []
     for m in memories_collection.find({}):
         memories.append({
@@ -134,6 +129,9 @@ def get_memories():
 
 @router.get("/memories/{memory_id}", response_model=MemoryResponse)
 def get_memory(memory_id: str):
+    if memories_collection is None:
+        raise HTTPException(status_code=500, detail="Database not connected")
+
     memory = memories_collection.find_one({"_id": ObjectId(memory_id)})
     if not memory:
         raise HTTPException(status_code=404, detail="Memory not found")
@@ -148,6 +146,9 @@ def get_memory(memory_id: str):
 
 @router.get("/users/{user_id}/memories", response_model=List[MemoryResponse])
 def get_user_memories(user_id: str):
+    if users_collection is None or memories_collection is None:
+        raise HTTPException(status_code=500, detail="Database not connected")
+
     if not users_collection.find_one({"_id": ObjectId(user_id)}):
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -162,27 +163,3 @@ def get_user_memories(user_id: str):
         })
     return memories
 
-
-@router.put("/memories/{memory_id}", response_model=MemoryResponse)
-def update_memory(memory_id: str, data: dict = Body(...)):
-    memory = memories_collection.find_one({"_id": ObjectId(memory_id)})
-    if not memory:
-        raise HTTPException(status_code=404, detail="Memory not found")
-
-    memories_collection.update_one({"_id": ObjectId(memory_id)}, {"$set": data})
-    updated = memories_collection.find_one({"_id": ObjectId(memory_id)})
-    return {
-        "id": str(updated["_id"]),
-        "user_id": updated["user_id"],
-        "text": updated["text"],
-        "mood": updated.get("mood"),
-        "image_url": updated.get("image_url")
-    }
-
-
-@router.delete("/memories/{memory_id}")
-def delete_memory(memory_id: str):
-    result = memories_collection.delete_one({"_id": ObjectId(memory_id)})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Memory not found")
-    return {"message": "Memory deleted"}
